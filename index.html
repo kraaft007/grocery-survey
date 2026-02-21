@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Grocery List Builder — Help Me Build a Better App!</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #FBF8F3; font-family: 'DM Sans', 'Helvetica Neue', sans-serif; color: #2C1810; min-height: 100vh; }
+  .container { max-width: 640px; margin: 0 auto; padding: 28px 20px 40px; }
+  .display-font { font-family: 'Playfair Display', 'Georgia', serif; }
+  .fade-in { opacity: 1; transform: translateY(0); transition: opacity 0.25s ease, transform 0.25s ease; }
+  .fade-out { opacity: 0; transform: translateY(8px); }
+  button { font-family: 'DM Sans', sans-serif; cursor: pointer; -webkit-appearance: none; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Step indicator */
+  .steps { display: flex; gap: 6px; margin-bottom: 28px; }
+  .step-bar { height: 4px; border-radius: 2px; flex: 1; background: #E8E2DB; transition: background 0.3s; }
+  .step-bar.active { background: #D97706; }
+
+  /* Category cards */
+  .cat-card { background: #FFF; border: 1.5px solid #E8E2DB; border-radius: 12px; overflow: hidden; transition: all 0.25s; margin-bottom: 8px; }
+  .cat-card.selected { background: #FFFBEB; border-color: rgba(217,119,6,0.31); box-shadow: 0 2px 12px rgba(217,119,6,0.08); }
+  .cat-header { display: flex; align-items: center; padding: 14px 16px; gap: 12px; }
+  .cat-checkbox { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #E8E2DB; background: transparent; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+  .cat-checkbox.checked { background: #D97706; border-color: #D97706; }
+  .cat-checkbox span { color: #FFF; font-size: 13px; font-weight: 700; }
+  .cat-icon { font-size: 24px; flex-shrink: 0; }
+  .cat-info { flex: 1; cursor: pointer; user-select: none; }
+  .cat-name { font-size: 15px; font-weight: 600; }
+  .cat-count { font-size: 11px; color: #6B5E54; margin-left: 8px; }
+  .cat-emojis { font-size: 15px; margin-top: 4px; letter-spacing: 2px; }
+  .cat-preview { font-size: 12px; color: #6B5E54; margin-top: 4px; opacity: 0.7; }
+  .cat-arrow { font-size: 14px; color: #6B5E54; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
+  .cat-arrow.open { transform: rotate(180deg); }
+  .cat-items { border-top: 1px solid rgba(232,226,219,0.25); padding: 10px 16px 14px; display: none; }
+  .cat-items.open { display: block; }
+
+  /* Item rows */
+  .item-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.55); border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 5px; border: 1px solid transparent; }
+  .item-row.checked { background: rgba(255,255,255,0.95); }
+  .item-cb { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; border: 2px solid #E8E2DB; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .item-cb.checked { border-color: currentColor; }
+  .item-cb span { color: #FFF; font-size: 11px; font-weight: 700; }
+  .item-name { font-size: 13px; font-weight: 600; }
+  .item-note { font-size: 12px; color: #6B5E54; margin-left: 6px; }
+
+  /* Selection bar */
+  .sel-bar { background: #2C1810; color: #FFF; border-radius: 10px; padding: 12px 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; box-shadow: 0 4px 12px rgba(44,24,16,0.15); }
+  .sel-bar .clear { cursor: pointer; opacity: 0.5; font-size: 11px; }
+
+  /* Buttons */
+  .btn-primary { font-size: 15px; font-weight: 600; background: #D97706; color: #FFF; border: none; border-radius: 10px; padding: 14px 24px; box-shadow: 0 4px 16px rgba(217,119,6,0.3); transition: transform 0.15s; flex: 1; }
+  .btn-secondary { font-size: 14px; font-weight: 500; background: transparent; color: #6B5E54; border: 1.5px solid #E8E2DB; border-radius: 10px; padding: 14px 20px; transition: border-color 0.15s; }
+  .btn-success { font-size: 15px; font-weight: 600; background: #059669; color: #FFF; border: none; border-radius: 10px; padding: 14px 24px; box-shadow: 0 4px 16px rgba(5,150,105,0.3); transition: transform 0.15s; flex: 1; }
+  .btn-dark { font-size: 15px; font-weight: 600; background: #2C1810; color: #FFF; border: none; border-radius: 10px; padding: 14px 24px; box-shadow: 0 4px 16px rgba(44,24,16,0.2); transition: transform 0.15s; flex: 1; }
+  .btn-row { display: flex; gap: 10px; }
+
+  /* Survey pills */
+  .survey-q { margin-bottom: 16px; }
+  .survey-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .survey-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .survey-pill { font-size: 12px; font-weight: 400; background: #FFF; color: #78350F; border: 1.5px solid rgba(212,163,116,0.25); border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: all 0.15s; }
+  .survey-pill.selected { background: #2C1810; color: #FFF; border-color: #2C1810; font-weight: 600; }
+
+  /* Invitation banner */
+  .invite-banner { background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: 16px; padding: 24px; margin-bottom: 36px; text-align: left; border: 1.5px solid rgba(245,158,11,0.19); box-shadow: 0 4px 20px rgba(245,158,11,0.12); }
+
+  /* Summary card */
+  .summary-card { background: #FFF; border-radius: 16px; border: 1.5px solid #E8E2DB; overflow: hidden; box-shadow: 0 4px 24px rgba(44,24,16,0.08); margin-bottom: 20px; }
+  .summary-section { padding: 18px 20px; border-bottom: 1px solid rgba(232,226,219,0.25); }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 6px; display: inline-block; margin: 0 5px 5px 0; }
+
+  /* Submit section */
+  .submit-btn { width: 100%; font-size: 17px; font-weight: 700; color: #FFF; border: none; border-radius: 12px; padding: 18px 24px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .submit-email { background: linear-gradient(135deg, #059669 0%, #10B981 100%); box-shadow: 0 6px 24px rgba(5,150,105,0.3); }
+  .submit-text { background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%); box-shadow: 0 6px 24px rgba(37,99,235,0.3); }
+  .submit-confirm { text-align: center; margin-top: 14px; font-size: 14px; color: #059669; font-weight: 600; display: none; }
+
+  /* Data sources */
+  .sources { background: #FFF; border-radius: 12px; border: 1px solid #E8E2DB; padding: 16px 20px; margin-bottom: 20px; }
+
+  .footer { max-width: 640px; margin: 32px auto 0; padding: 0 20px; font-size: 10px; color: #6B5E54; text-align: center; opacity: 0.5; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Step indicator (hidden on welcome) -->
+  <div id="step-indicator" class="steps" style="display:none">
+    <div class="step-bar" id="sb0"></div>
+    <div class="step-bar" id="sb1"></div>
+    <div class="step-bar" id="sb2"></div>
+  </div>
+
+  <div id="content" class="fade-in">
+    <!-- Screens rendered by JS -->
+  </div>
+</div>
+
+<div class="footer">
+  Data: USDA WWEIA 2021–2023 · Statistics Canada SHS 2023 · Dalhousie CFPR 2025/2026 · Drive Research 2024 · Statista 2024 · FMI Grocery Trends
+</div>
+
+<script>
+// ─── CONFIG ───
+const CONTACT_EMAIL = "smccreary2011@me.com";
+const CONTACT_PHONE = "7058282241";
+
+// ─── DATA ───
+const baseData = [
+  { id:"base-1", category:"Dairy & Eggs", purchaseFreq:"82%", icon:"🥛", color:"#3B82F6", emojis:"🥛 🥚 🧀 🧈 🫙",
+    items:[{name:"Milk",note:"Whole, 2%, or skim",emoji:"🥛"},{name:"Eggs",note:"One dozen, large",emoji:"🥚"},{name:"Cheese",note:"Block, sliced, or shredded",emoji:"🧀"},{name:"Butter",note:"Salted or unsalted",emoji:"🧈"},{name:"Yogurt",note:"Regular or Greek",emoji:"🫙"}]},
+  { id:"base-2", category:"Produce", purchaseFreq:"80%", icon:"🥬", color:"#22C55E", emojis:"🍌 🥔 🧅 🍅 🥬 🍎 🥕",
+    items:[{name:"Bananas",note:"Most purchased fruit",emoji:"🍌"},{name:"Potatoes",note:"Russet or yellow",emoji:"🥔"},{name:"Onions",note:"Yellow or white",emoji:"🧅"},{name:"Tomatoes",note:"Fresh, on-vine",emoji:"🍅"},{name:"Lettuce / Salad Greens",note:"Head or bagged",emoji:"🥬"},{name:"Apples",note:"Variety by season",emoji:"🍎"},{name:"Carrots",note:"Whole or baby",emoji:"🥕"}]},
+  { id:"base-3", category:"Snacks & Sweets", purchaseFreq:"76%", icon:"🍪", color:"#F59E0B", emojis:"🍟 🍪 🧁 🍦",
+    items:[{name:"Chips",note:"Potato or tortilla",emoji:"🍟"},{name:"Cookies / Crackers",note:"Sweet or savoury",emoji:"🍪"},{name:"Ice Cream",note:"Tub or bars",emoji:"🍦"}]},
+  { id:"base-4", category:"Beverages", purchaseFreq:"~70%", icon:"☕", color:"#8B5CF6", emojis:"☕ 🍵 💧 🧃",
+    items:[{name:"Coffee / Tea",note:"Ground, instant, or bags",emoji:"☕"},{name:"Water",note:"Bottled or sparkling",emoji:"💧"},{name:"Juice",note:"Orange or apple",emoji:"🧃"}]},
+  { id:"base-5", category:"Bread & Grains", purchaseFreq:"~65%", icon:"🍞", color:"#A16207", emojis:"🍞 🥣 🍝 🍚",
+    items:[{name:"Bread",note:"White or whole wheat",emoji:"🍞"},{name:"Cereal",note:"Hot or cold",emoji:"🥣"},{name:"Pasta",note:"Spaghetti or penne",emoji:"🍝"},{name:"Rice",note:"White or brown",emoji:"🍚"}]},
+  { id:"base-6", category:"Meat & Protein", purchaseFreq:"63%", icon:"🥩", color:"#EF4444", emojis:"🍗 🥩 🐖",
+    items:[{name:"Chicken",note:"Breasts, thighs, or whole",emoji:"🍗"},{name:"Ground Beef",note:"Medium or lean",emoji:"🥩"},{name:"Pork",note:"Chops or ground",emoji:"🐖"}]},
+  { id:"base-7", category:"Frozen & Prepared", purchaseFreq:"~55%", icon:"🧊", color:"#06B6D4", emojis:"🥦 🧊 🍕 🥫",
+    items:[{name:"Frozen Vegetables",note:"Peas, corn, mixed",emoji:"🥦"},{name:"Frozen Meals",note:"Dinners or pizza",emoji:"🍕"},{name:"Canned Soup",note:"Broth or cream-based",emoji:"🥫"}]},
+  { id:"base-8", category:"Household Essentials", purchaseFreq:"weekly", icon:"🧻", color:"#64748B", emojis:"🧻 🧴 🫧 👕 🗑️",
+    items:[{name:"Toilet Paper",note:"",emoji:"🧻"},{name:"Paper Towels",note:"",emoji:"🧺"},{name:"Dish Soap / Detergent",note:"",emoji:"🫧"},{name:"Laundry Detergent",note:"",emoji:"👕"},{name:"Garbage Bags",note:"",emoji:"🗑️"}]},
+];
+
+const persData = [
+  { id:"pers-1", category:"Pet Food & Supplies", icon:"🐾", color:"#78716C", frequency:"67% of households have pets", emojis:"🐶 🐱 🦴 🪣",
+    items:[{name:"Dog Food",note:"Dry or wet",emoji:"🐶"},{name:"Cat Food",note:"Dry or wet",emoji:"🐱"},{name:"Pet Treats",note:"",emoji:"🦴"},{name:"Cat Litter",note:"",emoji:"🪣"}]},
+  { id:"pers-2", category:"Alcohol", icon:"🍷", color:"#7F1D1D", frequency:"~60% of adults", emojis:"🍺 🍷 🥃",
+    items:[{name:"Beer",note:"",emoji:"🍺"},{name:"Wine",note:"",emoji:"🍷"},{name:"Spirits",note:"",emoji:"🥃"}]},
+  { id:"pers-3", category:"Condiments & Sauces", icon:"🫙", color:"#B45309", frequency:"~55% · high use, low buy frequency", emojis:"🍅 🫙 🥫 🧴 🥗 🫚 🌶️",
+    items:[{name:"Ketchup",note:"",emoji:"🍅"},{name:"Pasta Sauce",note:"Jarred",emoji:"🥫"},{name:"Mayonnaise",note:"",emoji:"🫙"},{name:"Mustard",note:"",emoji:"🟡"},{name:"Salad Dressing",note:"",emoji:"🥗"},{name:"Soy Sauce",note:"",emoji:"🫚"},{name:"Hot Sauce",note:"",emoji:"🌶️"}]},
+  { id:"pers-4", category:"Cooking Oils & Spices", icon:"🧂", color:"#854D0E", frequency:"~50% · monthly replenishment", emojis:"🫒 🧂 🧄 🌿 🫗",
+    items:[{name:"Vegetable / Canola Oil",note:"",emoji:"🫗"},{name:"Olive Oil",note:"",emoji:"🫒"},{name:"Salt & Pepper",note:"",emoji:"🧂"},{name:"Garlic",note:"Fresh or minced",emoji:"🧄"},{name:"Common Spices",note:"Paprika, cumin, oregano, cinnamon",emoji:"🌿"}]},
+  { id:"pers-5", category:"Deli & Cured Meats", icon:"🥓", color:"#BE123C", frequency:"~45% of households", emojis:"🥓 🥪 🌭 🍖",
+    items:[{name:"Bacon",note:"Regular or back",emoji:"🥓"},{name:"Deli Turkey / Ham",note:"Sliced",emoji:"🥪"},{name:"Sausages",note:"Breakfast or dinner",emoji:"🍖"},{name:"Hot Dogs",note:"",emoji:"🌭"}]},
+  { id:"pers-6", category:"Cleaning Products", icon:"🧹", color:"#4F46E5", frequency:"~40% · monthly cycle", emojis:"🧹 🧽 🪣 🫧",
+    items:[{name:"All-Purpose Cleaner",note:"Spray or concentrate",emoji:"🧹"},{name:"Bathroom Cleaner",note:"",emoji:"🫧"},{name:"Sponges / Scrub Pads",note:"",emoji:"🧽"},{name:"Glass Cleaner",note:"",emoji:"🪟"}]},
+  { id:"pers-7", category:"Personal Care", icon:"🧴", color:"#0891B2", frequency:"~35% · monthly cycle", emojis:"🪥 🧴 🧼 🪒 💆",
+    items:[{name:"Toothpaste",note:"",emoji:"🪥"},{name:"Hand Soap",note:"Liquid, for kitchen and bath",emoji:"🧼"},{name:"Shampoo / Conditioner",note:"",emoji:"🧴"},{name:"Body Soap / Wash",note:"",emoji:"🛁"},{name:"Deodorant",note:"",emoji:"💆"}]},
+  { id:"pers-8", category:"Baking Supplies", icon:"🧁", color:"#9333EA", frequency:"~35% regularly", emojis:"🧁 🎂 🥄 🫘",
+    items:[{name:"Flour",note:"All-purpose",emoji:"🌾"},{name:"Sugar",note:"White and/or brown",emoji:"🧁"},{name:"Baking Powder / Soda",note:"",emoji:"🥄"},{name:"Vanilla Extract",note:"",emoji:"🫘"}]},
+  { id:"pers-9", category:"Fish & Seafood", icon:"🐟", color:"#0369A1", frequency:"~30% weekly · lowest spend in Canada", emojis:"🐟 🦐 🐠 🍣",
+    items:[{name:"Salmon",note:"Fresh or frozen",emoji:"🐟"},{name:"Shrimp",note:"Peeled, fresh or frozen",emoji:"🦐"},{name:"Tuna",note:"Canned or fresh",emoji:"🐠"},{name:"Cod / Tilapia",note:"White fish",emoji:"🍣"}]},
+  { id:"pers-10", category:"Specialty & Dietary", icon:"🏷️", color:"#059669", frequency:"~25% follow specific diets", emojis:"💊 💪 🌿 🏷️",
+    items:[{name:"Vitamins & Supplements",note:"54% of households stock these",emoji:"💊"},{name:"Protein Powder / Bars",note:"",emoji:"💪"},{name:"Organic Produce",note:"",emoji:"🌿"},{name:"Gluten-Free Options",note:"Bread, pasta",emoji:"🏷️"}]},
+  { id:"pers-11", category:"Plant-Based & Alternatives", icon:"🌱", color:"#15803D", frequency:"~15-20%, growing", emojis:"🌱 🥛 🍔 🫘",
+    items:[{name:"Plant-Based Milk",note:"Oat, almond, soy",emoji:"🥛"},{name:"Meat Alternatives",note:"Burgers, grounds",emoji:"🍔"},{name:"Tofu",note:"Firm or extra firm",emoji:"🫘"}]},
+  { id:"pers-12", category:"Baby & Infant", icon:"👶", color:"#EC4899", frequency:"~15% of households", emojis:"👶 🧷 🧸 🍼",
+    items:[{name:"Diapers",note:"",emoji:"🧒"},{name:"Baby Wipes",note:"",emoji:"🧻"},{name:"Infant Formula",note:"",emoji:"🍼"},{name:"Baby Food",note:"Pouches or jars",emoji:"🥣"}]},
+];
+
+// ─── STATE ───
+let step = 0;
+let baseSel = new Set();
+let persSel = new Set();
+let baseItems = new Set();
+let persItems = new Set();
+let expandedId = null;
+let survey = { household:"", frequency:"", store:"", budget:"", country:"" };
+let selectedStores = new Set();
+const storeList = ["Food Basics","Walmart","No Frills","Metro","Zehrs","Foodland","Sobeys"];
+let otherStores = ["","",""];
+
+// ─── HELPERS ───
+function countBaseItems() { return baseItems.size; }
+function countPersItems() { return persItems.size; }
+function totalItems() { return countBaseItems() + countPersItems(); }
+function allSelCats() { return [...baseData.filter(c=>baseSel.has(c.id)), ...persData.filter(c=>persSel.has(c.id))]; }
+
+function toggleStore(name) {
+  if(selectedStores.has(name)) selectedStores.delete(name); else selectedStores.add(name);
+  render();
+}
+
+function setOtherStore(idx, val) {
+  otherStores[idx] = val;
+  // Auto-select/deselect the "other" entry
+  const key = "Other #"+(idx+1);
+  if(val.trim()) selectedStores.add(key); else selectedStores.delete(key);
+  // Don't re-render on every keystroke — just update state
+}
+
+function toggleCat(id, dataset, selSet, itemSet) {
+  const cat = dataset.find(c=>c.id===id);
+  if (selSet.has(id)) {
+    selSet.delete(id);
+    cat.items.forEach((_,i) => itemSet.delete(id+"-"+i));
+  } else {
+    selSet.add(id);
+    cat.items.forEach((_,i) => itemSet.add(id+"-"+i));
+  }
+  render();
+}
+
+function toggleItem(key, catId, dataset, selSet, itemSet) {
+  if (itemSet.has(key)) itemSet.delete(key); else itemSet.add(key);
+  // Auto-select category if any items
+  const cat = dataset.find(c=>c.id===catId);
+  const hasAny = cat.items.some((_,i) => itemSet.has(catId+"-"+i));
+  if (hasAny) selSet.add(catId); else selSet.delete(catId);
+  render();
+}
+
+function goStep(n) {
+  const el = document.getElementById("content");
+  el.classList.add("fade-out");
+  el.classList.remove("fade-in");
+  expandedId = null;
+  setTimeout(() => { step = n; render(); el.classList.remove("fade-out"); el.classList.add("fade-in"); }, 250);
+}
+
+function selectAllBase() {
+  baseData.forEach(c => { baseSel.add(c.id); c.items.forEach((_,i)=>baseItems.add(c.id+"-"+i)); });
+  render();
+}
+
+function setSurvey(key, val) { survey[key] = val; render(); }
+
+// ─── BUILD RESPONSE TEXT ───
+function buildResponse() {
+  const L = [];
+  L.push("=== GROCERY LIST SURVEY RESPONSE ===","");
+
+  // Stores
+  const allStores = [...selectedStores].map(s => {
+    if(s==="Other #1" && otherStores[0].trim()) return otherStores[0].trim();
+    if(s==="Other #2" && otherStores[1].trim()) return otherStores[1].trim();
+    if(s==="Other #3" && otherStores[2].trim()) return otherStores[2].trim();
+    if(s.startsWith("Other #")) return null;
+    return s;
+  }).filter(Boolean);
+  L.push("--- MY STORES ---");
+  L.push("Stores: "+(allStores.length ? allStores.join(", ") : "(none selected)"));
+  L.push("");
+
+  L.push("--- ABOUT YOU ---");
+  L.push("Household size: "+(survey.household||"(not answered)"));
+  L.push("Shopping frequency: "+(survey.frequency||"(not answered)"));
+  L.push("Primary store: "+(survey.store||"(not answered)"));
+  L.push("Monthly budget: "+(survey.budget||"(not answered)"));
+  L.push("Country: "+(survey.country||"(not answered)"));
+  L.push("");
+  L.push("--- WEEKLY ESSENTIALS ---");
+  baseData.filter(c=>baseSel.has(c.id)).forEach(cat => {
+    const items = cat.items.filter((_,i)=>baseItems.has(cat.id+"-"+i));
+    if(items.length) L.push(cat.icon+" "+cat.category+": "+items.map(i=>i.name).join(", "));
+  });
+  L.push("");
+  const pc = persData.filter(c=>persSel.has(c.id));
+  if(pc.length) {
+    L.push("--- YOUR EXTRAS ---");
+    pc.forEach(cat => {
+      const items = cat.items.filter((_,i)=>persItems.has(cat.id+"-"+i));
+      if(items.length) L.push(cat.icon+" "+cat.category+": "+items.map(i=>i.name).join(", "));
+    });
+    L.push("");
+  }
+  L.push("--- TOTALS: "+allSelCats().length+" categories, "+totalItems()+" items ---");
+  return L.join("\n");
+}
+
+function submitEmail() {
+  const body = buildResponse();
+  const subject = encodeURIComponent("My Grocery List Response 🛒");
+  const bodyEnc = encodeURIComponent(body);
+  window.location.href = "mailto:"+CONTACT_EMAIL+"?subject="+subject+"&body="+bodyEnc;
+  document.getElementById("submit-confirm").style.display = "block";
+}
+
+function submitText() {
+  const body = buildResponse();
+  const bodyEnc = encodeURIComponent(body);
+  window.location.href = "sms:"+CONTACT_PHONE+"&body="+bodyEnc;
+  document.getElementById("submit-confirm").style.display = "block";
+}
+
+// ─── RENDER CATEGORY CARD ───
+function renderCatCard(cat, dataset, selSet, itemSet) {
+  const sel = selSet.has(cat.id);
+  const itemCount = cat.items.filter((_,i) => itemSet.has(cat.id+"-"+i)).length;
+  const allSel = itemCount === cat.items.length;
+  const someSel = itemCount > 0 && !allSel;
+  const expanded = expandedId === cat.id;
+  const isBase = dataset === baseData;
+  const dsLabel = isBase ? "base" : "pers";
+
+  let html = '<div class="cat-card'+(sel?' selected':'')+'">';
+  html += '<div class="cat-header">';
+
+  // Checkbox
+  html += '<div class="cat-checkbox'+(sel?' checked':'')+'" onclick="toggleCat(\''+cat.id+'\','+(isBase?'baseData':'persData')+','+(isBase?'baseSel':'persSel')+','+(isBase?'baseItems':'persItems')+')">';
+  if(sel && someSel) html += '<span>–</span>';
+  else if(sel) html += '<span>✓</span>';
+  html += '</div>';
+
+  // Icon
+  html += '<span class="cat-icon">'+cat.icon+'</span>';
+
+  // Info
+  html += '<div class="cat-info" onclick="expandedId=expandedId===\''+cat.id+'\'?null:\''+cat.id+'\';render()">';
+  html += '<div><span class="cat-name">'+cat.category+'</span>';
+  html += '<span class="cat-count">'+(sel && itemCount > 0 ? itemCount+' of '+cat.items.length+' items' : cat.items.length+' items')+'</span></div>';
+  if(!expanded) {
+    html += '<div class="cat-emojis">'+cat.emojis+'</div>';
+    html += '<div class="cat-preview">'+cat.items.map(i=>i.name).join(' · ')+'</div>';
+  }
+  html += '</div>';
+
+  // Arrow
+  html += '<span class="cat-arrow'+(expanded?' open':'')+'" onclick="expandedId=expandedId===\''+cat.id+'\'?null:\''+cat.id+'\';render()">▾</span>';
+  html += '</div>';
+
+  // Items
+  if(expanded) {
+    html += '<div class="cat-items open" style="background:'+cat.color+'0D">';
+    cat.items.forEach((item, idx) => {
+      const key = cat.id+"-"+idx;
+      const ic = itemSet.has(key);
+      html += '<div class="item-row'+(ic?' checked':'')+'" onclick="toggleItem(\''+key+'\',\''+cat.id+'\','+(isBase?'baseData':'persData')+','+(isBase?'baseSel':'persSel')+','+(isBase?'baseItems':'persItems')+')" style="'+(ic?'border-color:'+cat.color+'40':'')+'">';
+      html += '<div class="item-cb'+(ic?' checked':'')+'" style="'+(ic?'background:'+cat.color+';border-color:'+cat.color:'')+'">'; 
+      if(ic) html += '<span>✓</span>';
+      html += '</div>';
+      html += '<div style="flex:1"><span class="item-name">'+(item.emoji?'<span style="margin-right:5px">'+item.emoji+'</span>':'')+item.name+'</span>';
+      if(item.note) html += '<span class="item-note">— '+item.note+'</span>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ─── RENDER SCREENS ───
+function render() {
+  const el = document.getElementById("content");
+  const si = document.getElementById("step-indicator");
+
+  // Step indicator
+  if(step > 0) {
+    si.style.display = "flex";
+    for(let i=0;i<3;i++) document.getElementById("sb"+i).className = "step-bar"+(i<=step-1?" active":"");
+  } else { si.style.display = "none"; }
+
+  let h = "";
+
+  if(step === 0) {
+    // Welcome
+    h += '<div style="text-align:center;padding:20px 0 60px">';
+    h += '<div class="invite-banner">';
+    h += '<div style="font-size:28px;margin-bottom:8px">👋🛒</div>';
+    h += '<h3 class="display-font" style="font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.3">Hey! I need your help.</h3>';
+    h += '<p style="font-size:14px;color:#78350F;margin-bottom:12px;line-height:1.6">I\'m building a smarter grocery app for Canadian and American shoppers, and I\'d love to know what <em>your</em> household actually buys each week.</p>';
+    h += '<p style="font-size:14px;color:#78350F;margin-bottom:12px;line-height:1.6">Walk through the list below, check off what matches your routine, then hit <strong>"Submit My List"</strong> at the end. Takes about 2 minutes.</p>';
+    h += '<p style="font-size:13px;color:#92400E;opacity:0.8;line-height:1.5">🔒 Your responses are anonymous and used only to shape the product. Thanks for helping out!</p>';
+    h += '</div>';
+
+    // Store Selector
+    h += '<div style="background:#FFF;border-radius:16px;padding:24px;margin-bottom:36px;text-align:left;border:1.5px solid #E8E2DB;box-shadow:0 2px 12px rgba(44,24,16,0.06)">';
+    h += '<div style="font-size:28px;margin-bottom:8px">🏪</div>';
+    h += '<h3 class="display-font" style="font-size:20px;font-weight:700;margin-bottom:6px;line-height:1.3">First — where do you shop?</h3>';
+    h += '<p style="font-size:14px;color:#6B5E54;margin-bottom:16px;line-height:1.5">Check all the stores you visit regularly.</p>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px">';
+
+    // Named stores
+    storeList.forEach(store => {
+      const checked = selectedStores.has(store);
+      h += '<div onclick="toggleStore(\''+store+'\')" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+(checked?'#FFFBEB':'#FBF8F3')+';border:1.5px solid '+(checked?'rgba(217,119,6,0.31)':'#E8E2DB')+';border-radius:10px;cursor:pointer;transition:all 0.15s">';
+      h += '<div style="width:22px;height:22px;border-radius:5px;border:2px solid '+(checked?'#D97706':'#E8E2DB')+';background:'+(checked?'#D97706':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+      if(checked) h += '<span style="color:#FFF;font-size:12px;font-weight:700">✓</span>';
+      h += '</div>';
+      h += '<span style="font-size:14px;font-weight:'+(checked?'600':'400')+';color:#2C1810">'+store+'</span>';
+      h += '</div>';
+    });
+
+    // Other stores (text inputs)
+    for(let i=0;i<3;i++) {
+      const key = "Other #"+(i+1);
+      const checked = selectedStores.has(key) && otherStores[i].trim();
+      h += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+(checked?'#FFFBEB':'#FBF8F3')+';border:1.5px solid '+(checked?'rgba(217,119,6,0.31)':'#E8E2DB')+';border-radius:10px;transition:all 0.15s">';
+      h += '<div style="width:22px;height:22px;border-radius:5px;border:2px solid '+(checked?'#D97706':'#E8E2DB')+';background:'+(checked?'#D97706':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+      if(checked) h += '<span style="color:#FFF;font-size:12px;font-weight:700">✓</span>';
+      h += '</div>';
+      h += '<input type="text" placeholder="Other store #'+(i+1)+' — type name here" value="'+otherStores[i].replace(/"/g,'&quot;')+'" oninput="setOtherStore('+i+',this.value)" onclick="event.stopPropagation()" style="flex:1;border:none;border-bottom:1.5px dashed #D4A37450;background:rgba(255,255,255,0.6);font-family:DM Sans,sans-serif;font-size:14px;color:#2C1810;outline:none;padding:4px 8px;border-radius:4px" />';
+      h += '</div>';
+    }
+
+    h += '</div>';
+    // Store count
+    const storeCount = [...selectedStores].filter(s => !s.startsWith("Other #") || otherStores[parseInt(s.slice(-1))-1]?.trim()).length;
+    if(storeCount > 0) {
+      h += '<div style="margin-top:12px;font-size:13px;color:#D97706;font-weight:600">✓ '+storeCount+' store'+(storeCount>1?'s':'')+' selected</div>';
+    }
+    h += '</div>';
+
+    h += '<div style="font-size:56px;margin-bottom:20px">🛒</div>';
+    h += '<h1 class="display-font" style="font-size:32px;font-weight:700;margin-bottom:12px;line-height:1.2;letter-spacing:-0.5px">Build Your Grocery List</h1>';
+    h += '<p style="font-size:16px;color:#6B5E54;margin-bottom:8px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.6">Start with what most North American households buy every week, then customize to make it yours.</p>';
+    h += '<p style="font-size:13px;color:#6B5E54;opacity:0.6;margin-bottom:36px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.5">Based on USDA dietary data, Statistics Canada household spending surveys, Dalhousie University food price research, and consumer purchasing data from 10,000+ households across both countries.</p>';
+    h += '<button class="btn-primary" style="font-size:16px;padding:14px 36px" onclick="goStep(1)">Let\'s Get Started</button>';
+    h += '</div>';
+  }
+
+  else if(step === 1) {
+    // Base set
+    h += '<div style="margin-bottom:20px">';
+    h += '<h2 class="display-font" style="font-size:24px;font-weight:700;margin-bottom:6px">The Weekly Essentials</h2>';
+    h += '<p style="font-size:14px;color:#6B5E54;margin-bottom:14px;line-height:1.5">These 8 categories cover what the majority of Canadian and American households buy each week. Select the ones that apply to you.</p>';
+    h += '<div style="font-size:12px;color:#D97706;cursor:pointer;font-weight:600" onclick="selectAllBase()">✓ Select all categories</div>';
+    h += '</div>';
+
+    if(baseSel.size > 0) {
+      h += '<div class="sel-bar"><span><strong>'+baseSel.size+'</strong> categories selected · <strong>'+countBaseItems()+'</strong> items</span>';
+      h += '<span class="clear" onclick="baseSel.clear();baseItems.clear();render()">Clear</span></div>';
+    }
+
+    baseData.forEach(c => { h += renderCatCard(c, baseData, baseSel, baseItems); });
+
+    h += '<div class="btn-row" style="margin-top:24px">';
+    h += '<button class="btn-primary" onclick="goStep(2)">Continue to Customize →</button>';
+    h += '<button class="btn-secondary" onclick="goStep(3)" style="white-space:nowrap">I\'m Done</button>';
+    h += '</div>';
+  }
+
+  else if(step === 2) {
+    // Personalization
+    h += '<div style="margin-bottom:20px">';
+    h += '<h2 class="display-font" style="font-size:24px;font-weight:700;margin-bottom:6px">Make It Yours</h2>';
+    h += '<p style="font-size:14px;color:#6B5E54;margin-bottom:4px;line-height:1.5">Add categories that fit your household. These vary by region, family size, and preference across Canada and the US. Skip what doesn\'t apply.</p>';
+    h += '</div>';
+
+    if(persSel.size > 0) {
+      h += '<div class="sel-bar"><span><strong>'+persSel.size+'</strong> extras selected · <strong>'+countPersItems()+'</strong> items</span>';
+      h += '<span class="clear" onclick="persSel.clear();persItems.clear();render()">Clear</span></div>';
+    }
+
+    persData.forEach(c => { h += renderCatCard(c, persData, persSel, persItems); });
+
+    h += '<div class="btn-row" style="margin-top:24px">';
+    h += '<button class="btn-secondary" onclick="goStep(1)">← Back</button>';
+    h += '<button class="btn-success" onclick="goStep(3)">View My Grocery List ✓</button>';
+    h += '</div>';
+  }
+
+  else if(step === 3) {
+    // Summary
+    const cats = allSelCats();
+    const ti = totalItems();
+
+    h += '<div style="text-align:center;margin-bottom:28px">';
+    h += '<div style="font-size:48px;margin-bottom:12px">✅</div>';
+    h += '<h2 class="display-font" style="font-size:26px;font-weight:700;margin-bottom:6px">Your Grocery List</h2>';
+    h += '<p style="font-size:14px;color:#6B5E54;line-height:1.5">'+cats.length+' categories · '+ti+' items</p>';
+    h += '</div>';
+
+    // Summary card
+    h += '<div class="summary-card">';
+
+    // Base
+    if(baseSel.size > 0) {
+      h += '<div class="summary-section">';
+      h += '<div style="font-size:11px;font-weight:600;color:#D97706;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Weekly Essentials — '+countBaseItems()+' items</div>';
+      baseData.filter(c=>baseSel.has(c.id)).forEach(cat => {
+        const items = cat.items.filter((_,i) => baseItems.has(cat.id+"-"+i));
+        if(!items.length) return;
+        h += '<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+        h += '<span style="font-size:16px">'+cat.icon+'</span><span style="font-size:13px;font-weight:600">'+cat.category+'</span>';
+        h += '<span style="font-size:11px;color:#6B5E54">('+items.length+')</span></div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:5px;padding-left:26px">';
+        items.forEach(item => {
+          h += '<span class="chip" style="background:'+cat.color+'12;color:#2C1810">'+(item.emoji?'<span style="margin-right:4px">'+item.emoji+'</span>':'')+item.name+'</span>';
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+    }
+
+    // Personalization
+    if(persSel.size > 0) {
+      h += '<div class="summary-section">';
+      h += '<div style="font-size:11px;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Your Extras — '+countPersItems()+' items</div>';
+      persData.filter(c=>persSel.has(c.id)).forEach(cat => {
+        const items = cat.items.filter((_,i) => persItems.has(cat.id+"-"+i));
+        if(!items.length) return;
+        h += '<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+        h += '<span style="font-size:16px">'+cat.icon+'</span><span style="font-size:13px;font-weight:600">'+cat.category+'</span>';
+        h += '<span style="font-size:11px;color:#6B5E54">('+items.length+')</span></div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:5px;padding-left:26px">';
+        items.forEach(item => {
+          h += '<span class="chip" style="background:'+cat.color+'12;color:#2C1810">'+(item.emoji?'<span style="margin-right:4px">'+item.emoji+'</span>':'')+item.name+'</span>';
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+    }
+
+    // Totals
+    h += '<div style="padding:14px 20px;background:#FBF8F3;display:flex;justify-content:space-between;align-items:center">';
+    h += '<span style="font-size:14px;font-weight:700">Total: '+cats.length+' categories, '+ti+' items</span>';
+    h += '<span style="font-size:11px;color:#6B5E54;background:#FFF;padding:4px 10px;border-radius:6px">Ready to shop</span>';
+    h += '</div></div>';
+
+    // Empty state
+    if(cats.length === 0) {
+      h += '<div style="text-align:center;padding:40px 20px;color:#6B5E54;font-size:14px">No categories selected yet. Go back and pick what you need.</div>';
+    }
+
+    // Action buttons
+    h += '<div class="btn-row" style="margin-bottom:20px">';
+    h += '<button class="btn-secondary" onclick="goStep(1)">← Edit List</button>';
+    h += '<button class="btn-dark" onclick="step=0;baseSel.clear();persSel.clear();baseItems.clear();persItems.clear();selectedStores.clear();otherStores=[\'\',\'\',\'\'];survey={household:\'\',frequency:\'\',store:\'\',budget:\'\',country:\'\'};render()">Start Over</button>';
+    h += '</div>';
+
+    // Survey
+    if(ti > 0) {
+      h += '<div class="invite-banner" style="margin-bottom:20px">';
+      h += '<div style="font-size:24px;margin-bottom:8px">📋</div>';
+      h += '<h3 class="display-font" style="font-size:18px;font-weight:700;margin-bottom:4px">Almost done! A few quick questions.</h3>';
+      h += '<p style="font-size:13px;color:#92400E;opacity:0.8;margin-bottom:20px">These help me understand shopping patterns across different households.</p>';
+
+      const qs = [
+        {key:"household", label:"🏠 Household size", opts:["1 person","2 people","3–4 people","5+ people"]},
+        {key:"frequency", label:"📅 How often do you grocery shop?", opts:["Weekly","Bi-weekly","Monthly","As needed"]},
+        {key:"store", label:"🏪 Primary grocery store", opts:["Loblaws / No Frills","Sobeys / FreshCo","Metro / Food Basics","Walmart","Costco","Other"]},
+        {key:"budget", label:"💰 Monthly grocery budget", opts:["Under $200","$200–$400","$400–$600","$600–$800","$800+"]},
+        {key:"country", label:"🌎 Country", opts:["🇨🇦 Canada","🇺🇸 United States"]},
+      ];
+      qs.forEach(q => {
+        h += '<div class="survey-q"><div class="survey-label">'+q.label+'</div><div class="survey-opts">';
+        q.opts.forEach(o => {
+          h += '<button class="survey-pill'+(survey[q.key]===o?' selected':'')+'" onclick="setSurvey(\''+q.key+'\',\''+o.replace(/'/g,"\\'")+'\')">'+o+'</button>';
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+
+      // Submit buttons
+      h += '<div style="margin-bottom:20px">';
+      h += '<button class="submit-btn submit-email" onclick="submitEmail()">📧 Send via Email</button>';
+      h += '<button class="submit-btn submit-text" onclick="submitText()">💬 Send via iMessage</button>';
+      h += '<div id="submit-confirm" class="submit-confirm">✅ Your grocery list is ready to send! Check your email or Messages app.</div>';
+      h += '<p style="font-size:12px;color:#6B5E54;text-align:center;margin-top:12px;opacity:0.6;line-height:1.5">Choose how you\'d like to send your response back. Both options pre-fill your list automatically.</p>';
+      h += '</div>';
+    }
+
+    // Data sources
+    h += '<div class="sources">';
+    h += '<div style="font-size:11px;font-weight:600;color:#6B5E54;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Data Sources — North America</div>';
+    const srcs = [
+      {f:"🇺🇸",s:"USDA WWEIA Food Categories 2021–2023",d:"170 food categories, NHANES dietary survey"},
+      {f:"🇺🇸",s:"Drive Research Grocery Survey 2024",d:"n=1,000 census-representative"},
+      {f:"🇺🇸",s:"Statista Consumer Insights 2024",d:"n=10,085 respondents"},
+      {f:"🇺🇸",s:"FMI U.S. Grocery Shopper Trends 2024",d:"Industry benchmark"},
+      {f:"🇨🇦",s:"Statistics Canada, Survey of Household Spending 2023",d:"8 food categories, national household data"},
+      {f:"🇨🇦",s:"Dalhousie University, Canada\'s Food Price Report 2025/2026",d:"Multi-university, predictive analytics"},
+      {f:"🇨🇦",s:"Statistics Canada, Food Price Data Hub",d:"CPI, retail prices, interactive basket tool"},
+    ];
+    srcs.forEach(src => {
+      h += '<div style="display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.4;margin-bottom:6px">';
+      h += '<span style="flex-shrink:0">'+src.f+'</span><div><span style="font-weight:600">'+src.s+'</span>';
+      h += '<span style="color:#6B5E54;margin-left:4px">— '+src.d+'</span></div></div>';
+    });
+    h += '</div>';
+  }
+
+  el.innerHTML = h;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
